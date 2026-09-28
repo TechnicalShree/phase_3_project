@@ -15,8 +15,15 @@ const elements = {'connection': {open: false}, 'connection-label': {}, 'token': 
 context.$ = id => elements[id];
 const source = fs.readFileSync('app/static/app.js', 'utf8');
 vm.runInContext(source.slice(source.indexOf('function requireConnection()'), source.indexOf('async function call(')), context);
-assert.throws(() => context.checkAuth({status: 401}), /app access token/);
+assert.throws(() => context.checkAuth({status: 401}), /workspace access token/);
 assert.equal(elements.connection.open, true);
 assert.equal(elements.token.focused, true);
 assert.doesNotThrow(() => context.checkAuth({status: 200}));
 console.log('PASS: unauthorized responses open the connection panel.');
+
+vm.runInContext(source.slice(source.indexOf('function requestTitle('), source.indexOf("$('token').value =")), context);
+assert.equal(context.requestTitle({values:{text:'Campus wifi outage'}}), 'Campus wifi outage');
+assert.equal(context.requestTitle({values:{}}), 'Untitled request');
+assert.equal(context.progressText(['tools']), 'Checking campus information');
+assert.equal(context.progressText(['draft']), 'Preparing a ticket for your review');
+console.log('PASS: friendly request names and progress stages.');
