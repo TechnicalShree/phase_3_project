@@ -62,12 +62,19 @@ class State(TypedDict, total=False):
 
 def model():
     from langchain_openai import ChatOpenAI
-    if not os.getenv('OPENROUTER_API_KEY'):
-        raise ValueError('MODEL_MODE=live requires OPENROUTER_API_KEY in .env')
-    return ChatOpenAI(model=os.getenv('OPENROUTER_MODEL', 'openai/gpt-4.1-mini'),
-                      api_key=os.environ['OPENROUTER_API_KEY'], base_url='https://openrouter.ai/api/v1',
-                      temperature=0, timeout=45, max_retries=1,
-                      default_headers={'X-Title': 'Campus IT Desk'})
+    provider = os.getenv('LLM_PROVIDER', 'openrouter')
+    if provider == 'commandcode':
+        key_name, model_name = 'CMD_API_KEY', os.getenv('CMD_MODEL', 'gpt-5.4-mini')
+        base_url = 'https://api.commandcode.ai/provider/v1'
+    elif provider == 'openrouter':
+        key_name, model_name = 'OPENROUTER_API_KEY', os.getenv('OPENROUTER_MODEL', 'openai/gpt-4.1-mini')
+        base_url = 'https://openrouter.ai/api/v1'
+    else:
+        raise ValueError('LLM_PROVIDER must be commandcode or openrouter.')
+    if not os.getenv(key_name):
+        raise ValueError(f'MODEL_MODE=live requires {key_name} in .env')
+    return ChatOpenAI(model=model_name, api_key=os.environ[key_name], base_url=base_url,
+                      timeout=45, max_retries=1)
 
 
 def classify(state):

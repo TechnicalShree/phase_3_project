@@ -22,19 +22,31 @@ On Windows, activate with `.venv\Scripts\activate` and copy the environment exam
 
 Open **http://127.0.0.1:8000**. Interactive API documentation is at **http://127.0.0.1:8000/docs**. Use one server worker. Stop with Ctrl+C. Both SQLite files persist under `data/`; restarting the server preserves conversations and pending reviews. The reference PDFs in `ref/` are not needed at runtime and are intentionally excluded from Git.
 
-### Offline demo vs live OpenRouter
+### Offline demo vs live model providers
 
 The default `MODEL_MODE=demo` is a **deterministic test double**, not an LLM. It runs the same real StateGraph, ToolNode, Send fan-out, SQLite persistence, interrupt, approval, and replay paths as live mode. It lets a reviewer verify control flow without credentials.
 
-For the assessed LLM behavior, edit `.env`:
+For live **Command Code**, edit `.env`:
 
 ```dotenv
 MODEL_MODE=live
+LLM_PROVIDER=commandcode
+CMD_API_KEY=your-local-key
+CMD_MODEL=gpt-5.4-mini
+```
+
+Restart the server. The badge changes to **COMMAND CODE · LIVE**. The key stays on the server. The existing `ChatOpenAI` client uses `https://api.commandcode.ai/provider/v1`; no additional SDK is needed. The default `gpt-5.4-mini` is listed in the [Command Code model catalog](https://api.commandcode.ai/provider/v1/models) with Chat Completions support. Choose a tool-capable model supporting that endpoint. Claude models on Command Code require the separate Anthropic Messages endpoint and are not supported by this adapter. An API-enabled Command Code plan and a Studio API key are required; see the [provider documentation](https://commandcode.ai/docs/provider).
+
+OpenRouter remains available by setting:
+
+```dotenv
+MODEL_MODE=live
+LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-local-key
 OPENROUTER_MODEL=openai/gpt-4.1-mini
 ```
 
-Restart the server. The UI badge changes to **OPENROUTER · LIVE**. The key stays on the server. `ChatOpenAI` points at `https://openrouter.ai/api/v1`; the model must support tool calling. Live mode uses `with_structured_output(..., method="function_calling")` for classification, supervisor decisions and specialist findings, and `bind_tools()` for research and ticket drafting. Provider failures surface as errors; there is no silent fallback to demo mode.
+That selection uses `https://openrouter.ai/api/v1`. Live mode uses `with_structured_output(..., method="function_calling")` for classification, supervisor decisions and specialist findings, and `bind_tools()` for research and ticket drafting. Provider failures surface as errors; there is no silent fallback to demo mode or another provider.
 
 Run the optional live check after configuring the key:
 
@@ -42,7 +54,7 @@ Run the optional live check after configuring the key:
 python scripts/live_smoke.py
 ```
 
-This sends fictional campus requests to OpenRouter and consumes API credits. It checks real tool calls, specialist dispatch, an approval interrupt, and denial without writing a ticket. **Live OpenRouter calls have not been verified in the initial build because no key was configured.** Offline and real-process checks are documented in [verification evidence](docs/VERIFICATION.md).
+This sends fictional campus requests to the selected provider and consumes API credits. It checks real tool calls, specialist dispatch, an approval interrupt, and denial without writing a ticket. **Live model calls have not been verified because no provider key was configured.** Offline and real-process checks are documented in [verification evidence](docs/VERIFICATION.md).
 
 ## What to try
 
@@ -94,7 +106,7 @@ The outer graph uses `SqliteSaver` with a required `thread_id`. Triage, research
 | Component | Technology / purpose |
 | --- | --- |
 | Orchestration | LangGraph StateGraph, ToolNode, Send, Command, interrupt |
-| Live models | LangChain ChatOpenAI through OpenRouter; configurable tool-capable model |
+| Live models | LangChain ChatOpenAI through Command Code or OpenRouter; configurable tool-capable model |
 | API | FastAPI, Pydantic input validation, SSE node events |
 | Persistence | SQLite checkpoints in `data/checkpoints.sqlite`; tickets in `data/tickets.sqlite` |
 | UI | Accessible native HTML forms, CSS, vanilla JavaScript; same origin as API |
@@ -190,3 +202,5 @@ Architecture requirements come from the four Phase 3 PDFs in the user's local `r
 - [LangGraph time travel](https://docs.langchain.com/oss/python/langgraph/use-time-travel)
 - [LangGraph graph API and Send](https://docs.langchain.com/oss/python/langgraph/graph-api)
 - [OpenRouter tool calling](https://openrouter.ai/docs/guides/features/tool-calling)
+
+- [Command Code Provider API](https://commandcode.ai/docs/provider)

@@ -1,4 +1,4 @@
-"""Opt-in OpenRouter check; uses credits and fictional data, never the app's saved threads."""
+"""Opt-in live provider check; uses credits and fictional data, never the app's saved threads."""
 import os
 from pathlib import Path
 import sys
@@ -8,8 +8,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ['MODEL_MODE'] = 'live'
 from app.service import Helpdesk
 
-if not os.getenv('OPENROUTER_API_KEY'):
-    raise SystemExit('Add OPENROUTER_API_KEY to .env before running this opt-in check.')
+from app.graph import model
+
+try:
+    model()  # Validate the selected provider/key without making a model request.
+except ValueError as error:
+    raise SystemExit(str(error)) from error
 
 with tempfile.TemporaryDirectory() as directory:
     service = Helpdesk(directory)
@@ -26,7 +30,7 @@ with tempfile.TemporaryDirectory() as directory:
         denied = service.resume('live-write', 'deny', pending['checkpoint_id'])
         assert denied['values']['write_result']['status'] == 'denied'
         assert not service.tickets(), 'Denial created a record'
-        print('PASS: OpenRouter classification, bound tools, supervisor, specialists, draft, interrupt and denial.')
+        print(f"PASS ({os.getenv('LLM_PROVIDER', 'openrouter')}): classification, bound tools, supervisor, specialists, draft, interrupt and denial.")
         print('Lookup tools observed:', ', '.join(sorted(set(calls))))
     finally:
         service.close()

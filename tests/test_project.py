@@ -215,6 +215,32 @@ class ProjectChecks(unittest.TestCase):
                 self.assertEqual(client.post('/approve', headers=headers, json={
                     'thread_id': 'nope', 'checkpoint_id': 'fake'}).status_code, 409)
 
+    def test_provider_selection(self):
+        from app.graph import model
+        from fastapi.testclient import TestClient
+        from app.api import create_app
+        for provider, key, name, url in [
+            ('commandcode', 'cmd-test', 'gpt-5.4-mini', 'https://api.commandcode.ai/provider/v1'),
+            ('openrouter', 'router-test', 'openai/gpt-4.1-mini', 'https://openrouter.ai/api/v1'),
+        ]:
+            with patch.dict(os.environ, LLM_PROVIDER=provider, CMD_API_KEY='cmd-test',
+                            OPENROUTER_API_KEY='router-test', CMD_MODEL='gpt-5.4-mini',
+                            OPENROUTER_MODEL='openai/gpt-4.1-mini'):
+                with patch('langchain_openai.ChatOpenAI') as client:
+                    model()
+                    self.assertEqual(client.call_args.kwargs['api_key'], key)
+                    self.assertEqual(client.call_args.kwargs['model'], name)
+                    self.assertEqual(client.call_args.kwargs['base_url'], url)
+                    self.assertNotIn('temperature', client.call_args.kwargs)
+                with tempfile.TemporaryDirectory() as directory, TestClient(create_app(directory)) as api:
+                    self.assertEqual(api.get('/health').json()['provider'], provider)
+        with patch.dict(os.environ, LLM_PROVIDER='commandcode', CMD_API_KEY=''):
+            with self.assertRaisesRegex(ValueError, 'CMD_API_KEY'):
+                model()
+        with patch.dict(os.environ, LLM_PROVIDER='unknown'):
+            with self.assertRaisesRegex(ValueError, 'LLM_PROVIDER'):
+                model()
+
 
 if __name__ == '__main__':
     unittest.main()

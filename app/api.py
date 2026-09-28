@@ -63,7 +63,8 @@ def create_app(directory=None):
 
     @app.get('/health')
     def health():
-        return {'status': 'ok', 'mode': os.getenv('MODEL_MODE', 'demo')}
+        return {'status': 'ok', 'mode': os.getenv('MODEL_MODE', 'demo'),
+                'provider': os.getenv('LLM_PROVIDER', 'openrouter')}
 
     def service(request: Request):
         return request.app.state.helpdesk

@@ -1,12 +1,12 @@
 # Reviewer walkthrough
 
-Run the README setup first. For a deterministic demonstration keep `MODEL_MODE=demo`; for actual model behavior configure OpenRouter and run `python scripts/live_smoke.py`. The mock accounts are fictional. Each scenario should use **New thread** unless the scenario specifically tests a follow-up.
+Run the README setup first. For a deterministic demonstration keep `MODEL_MODE=demo`; for actual model behavior configure Command Code or OpenRouter and run `python scripts/live_smoke.py`. The mock accounts are fictional. Each scenario should use **New thread** unless the scenario specifically tests a follow-up.
 
 ## 1. Read-only support and tool binding
 
 Use `My campus laptop is slow and the printer will not connect.` Send the request. The UI streams ingress, classification, supervisor, agent and tools, then specialist/synthesis steps. The response is low severity: no draft and no pending review. Look at specialist findings: hardware is relevant, account/network are filtered from the final synthesis.
 
-Use `Campus wifi issue for STU-1001. Check its account and service status.` Observe the lookup, knowledge-base, and service-status tools in the saved agent messages or terminal test evidence. Demo mode emits actual LangChain tool-call messages; live mode asks the OpenRouter model to choose them.
+Use `Campus wifi issue for STU-1001. Check its account and service status.` Observe the lookup, knowledge-base, and service-status tools in the saved agent messages or terminal test evidence. Demo mode emits actual LangChain tool-call messages; live mode asks the selected live model to choose them.
 
 ## 2. Write approval, denial, edits, idempotency
 
@@ -61,7 +61,7 @@ Correction deliberately permits only category changes and restarts downstream of
 ## Submission readiness
 
 - Commit all project files; `.env`, `data/`, `.venv/` and `ref/` stay ignored.
-- Run the complete offline suite and the optional OpenRouter smoke check with your key.
+- Run the complete offline suite and the optional live provider smoke check with your key.
 - Publish this repository on GitHub and make it public or share it with the instructor.
 - Confirm the README instructions from a fresh clone/virtual environment.
 - Submit the repository URL (option B); no separate write-up is required by the supplied guidelines.

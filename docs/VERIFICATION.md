@@ -25,7 +25,7 @@ Command: `python -m unittest discover -s tests -v`
 | Boundary validation | Unauthorized access, extra approval/state fields and cross-origin mutations rejected |
 | Live-mode unit checks | Critical requests retain high severity even if a model suggests low; injected write state stays out of the model schema |
 
-No live OpenRouter call is included in these offline results. `scripts/live_smoke.py` is the opt-in live verification command once a key is available.
+No live provider call is included in these offline results. `scripts/live_smoke.py` is the opt-in live verification command once a key is available.
 
 ## Browser checks
 
@@ -41,11 +41,15 @@ The README screenshot is an actual running UI capture, not a design mockup.
 
 ## Reproducibility
 
-A fresh local clone of source commit `0f25be0` was created outside the working tree. A new Python virtual environment was created with `python -m venv`, all pinned requirements were installed with pip, and the full suite ran from that clone: **16 checks passed in 5.105 seconds**. No reference PDFs, local `.env`, working-tree database or existing virtual environment were copied into it. The remaining evidence commit changes documentation/screenshots only.
+A fresh local clone of source commit `0f25be0` was created outside the working tree. A new Python virtual environment was created with `python -m venv`, all pinned requirements were installed with pip, and the full suite ran from that clone: **16 checks passed in 5.105 seconds**. No reference PDFs, local `.env`, working-tree database or existing virtual environment were copied into it. The evidence commit immediately after that source revision changed documentation/screenshots only. Later provider changes are checked separately below.
 
 The complete captured output is in [test-results.txt](test-results.txt).
 
 ## Remaining external steps
 
-- Configure an OpenRouter key and run the opt-in live smoke test. Do not claim live verification until it passes.
+- Configure a Command Code or OpenRouter key and run the opt-in live smoke test. Do not claim live verification until it passes.
 - Publish the repository publicly or share it with the instructor, then submit its GitHub URL. The local build has not been published or submitted.
+
+## Command Code provider update
+
+The factory now selects Command Code or OpenRouter without adding a dependency. The provider-selection check verifies URL, model and key isolation for both providers, the UI health metadata, missing-key errors, and rejection of unknown providers. It also verifies that a temperature override is omitted for models that do not support it. The complete suite now has **17 passing checks**. Live provider calls still require a configured key and are not included in this claim.
