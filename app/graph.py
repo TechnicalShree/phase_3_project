@@ -1,6 +1,7 @@
 """Campus IT graph. MODEL_MODE=demo is an explicit offline test double."""
 import os
 import json
+import operator
 import re
 from typing import Annotated
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
@@ -25,6 +26,7 @@ class Triage(BaseModel):
 
 
 class State(TypedDict, total=False):
+    findings: Annotated[list[dict], operator.add]
     messages: Annotated[list[AnyMessage], add_messages]
     iterations: int
     fingerprints: list[str]
@@ -112,27 +114,48 @@ def summarize(state):
             'messages': Overwrite([state['messages'][-1]])}
 
 
-def build_graph(checkpointer=None):
+def ingress_node(state):
+    if state.get('blocked'):
+        return {}
+    result = ingress(state['text'], bool(state.get('history')))
+    result['guardrails'] = list(dict.fromkeys(state.get('guardrails', []) + result['guardrails']))
+    return result
+
+
+def build_triage():
     graph = StateGraph(State)
     graph.add_node('classify', classify)
-    graph.add_node('ingress', lambda state: {**ingress(state['text'], bool(state.get('history'))),
-                       'guardrails': list(dict.fromkeys(state.get('guardrails', []) +
-                           ingress(state['text'], bool(state.get('history')))['guardrails']))}
-                   if not state.get('blocked') else {})
-    graph.add_node('blocked', lambda state: {'response': 'This request was blocked. I can help with campus IT issues.'})
-    graph.add_edge(START, 'ingress')
-    graph.add_conditional_edges('ingress', lambda state: 'blocked' if state.get('blocked') else 'classify')
-    graph.add_edge('blocked', 'egress')
+    graph.add_edge(START, 'classify')
+    graph.add_edge('classify', END)
+    return graph.compile()
+
+
+def build_research():
+    graph = StateGraph(State)
     graph.add_node('agent', agent)
     graph.add_node('tools', ToolNode(READ_TOOLS))
-    graph.add_edge('classify', 'agent')
-    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else 'egress')
+    graph.add_edge(START, 'agent')
+    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else END)
     graph.add_edge('tools', 'agent')
+    return graph.compile()
+
+
+def build_graph(checkpointer=None):
+    graph = StateGraph(State)
+    graph.add_node('ingress', ingress_node)
+    graph.add_node('blocked', lambda state: {'response': 'This request was blocked. I can help with campus IT issues.'})
+    graph.add_node('triage', build_triage())
+    graph.add_node('research', build_research())
     graph.add_node('egress', egress)
-    graph.add_edge('egress', 'finish')
     graph.add_node('finish', lambda state: {'history': state.get('history', []) + [
         {'user': state['text'], 'assistant': state['response']}]})
     graph.add_node('summarize', summarize)
+    graph.add_edge(START, 'ingress')
+    graph.add_conditional_edges('ingress', lambda state: 'blocked' if state.get('blocked') else 'triage')
+    graph.add_edge('blocked', 'egress')
+    graph.add_edge('triage', 'research')
+    graph.add_edge('research', 'egress')
+    graph.add_edge('egress', 'finish')
     graph.add_edge('finish', 'summarize')
     graph.add_edge('summarize', END)
     return graph.compile(checkpointer=checkpointer)

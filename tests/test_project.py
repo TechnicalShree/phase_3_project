@@ -79,6 +79,13 @@ class ProjectChecks(unittest.TestCase):
             service.close()
         self.assertEqual(egress({'response': 'Contact jane@example.com'})['response'], 'Contact [EMAIL]')
 
+    def test_subgraphs_standalone(self):
+        from app.graph import build_triage, build_research
+        triage = build_triage().invoke({'text': 'wifi outage'})
+        self.assertEqual(triage['severity'], 'high')
+        research = build_research().invoke({'text': 'wifi outage', **triage})
+        self.assertIn('North Hall', research['response'])
+
 
 if __name__ == '__main__':
     unittest.main()
