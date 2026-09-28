@@ -64,3 +64,18 @@ The adapter validates JSON against Pydantic schemas and converts allowed tool de
 The suite has **18 passing checks**, including CLI schema validation, unknown-tool/argument rejection, required draft enforcement, timeout/nonzero-exit handling, and secret-free error messages. The initial live smoke attempt passed lookup/specialists but hit the one-turn CLI limit during the second request; the limit was increased to two while retaining the 90-second timeout and rejecting unsuccessful results.
 
 The complete live smoke retry **passed** using Space Bunny Alpha on Go: real classification, supervisor routing, account/service lookup execution, three specialist findings, validated ticket draft, approval interrupt, and denial with zero ticket records. The live test used a temporary SQLite directory. Native API providers remain unverified.
+
+## Public HTTPS browser end-to-end test (2026-09-28)
+
+Tested the deployed `https://campus-it.technicalshree.in/` through the browser UI, using fictional records:
+
+- Fresh visitor: the access-token panel opens at the top; invalid credentials are rejected, valid app token connects. Authentication remains enforced.
+- Submitted Wi-Fi outage through the streaming form; observed actual tool execution and three specialist findings, then an approval pause.
+- Reloaded the page while pending, edited the draft title, and approved it. Registry contains `IT-00001`, marked edited and approved.
+- Submitted account deletion review and denied it; the UI confirmed no record was written and ticket count stayed at one.
+- Inspected checkpoint history, replayed the denied request, and observed a fresh approval pause. Explicitly approving that replay created mock review ticket `IT-00002` (no account deletion).
+- Submitted the prompt-injection example; it was blocked with zero agent steps.
+- Duplicate approval via public API returned 409 without increasing ticket count; invalid authentication returned 401.
+- Refreshed the deployed page and verified persisted records. The new browser test session had no console warnings or errors at the guardrail checkpoint.
+
+Two deployment/UI issues were fixed: connection settings were hidden in the footer, and Cloudflare cached the old JavaScript. The connection panel is now prominent and static asset URLs are versioned. Tests rerun on EC2: **18 Python checks and both browser-helper checks passed**. E2E-labelled threads and two mock tickets are retained as evidence; no real accounts were modified.
