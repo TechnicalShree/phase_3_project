@@ -30,3 +30,6 @@ Each row corresponds to a tested implementation commit, not a retrospective labe
 | 8 | Structured supervisor, worker return paths, delegation cap | research → specialist → FINISH; cap precedes model call |
 | 9 | Send fan-out to three compiled specialists and synthesis | Three-party barrier proves concurrent execution; irrelevant advice filtered |
 | 10 | Severity-gated ticket draft, bound write tool, unique idempotency key | Write tool interrupts before touching the ticket database |
+| 11 | FastAPI run/stream/review endpoints, pending queue, approval UI | Approve/deny/edit, stale approvals, idempotency and restart resume tested |
+
+Start the local app with `uvicorn app.api:app --host 127.0.0.1 --port 8000` and open http://127.0.0.1:8000. API docs: `/docs`. One worker only. Configure `API_TOKEN` before any remote use; the UI accepts it in its password field.

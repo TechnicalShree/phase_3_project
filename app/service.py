@@ -4,10 +4,12 @@ from pathlib import Path
 from threading import RLock
 
 from langgraph.checkpoint.sqlite import SqliteSaver
-from langgraph.types import Overwrite
+from langgraph.types import Overwrite, Command
 
 from app.graph import build_graph
-from app.guards import ingress
+from app.guards import ingress, egress, redact
+from app.tools import clean_draft, ticket_db
+import json
 
 
 class Helpdesk:
@@ -45,8 +47,45 @@ class Helpdesk:
 
     def snapshot(self, thread_id):
         state = self.graph.get_state(self.config(thread_id))
-        return {'thread_id': thread_id, 'values': state.values, 'next': list(state.next),
-                'checkpoint_id': state.config['configurable'].get('checkpoint_id')}
+        values = dict(state.values)
+        if values:
+            values['response'] = egress(values)['response']
+            values['messages'] = [{'type': m.type, 'content': redact(str(m.content))} for m in values.get('messages', [])]
+            values['findings'] = [{**f, 'advice': redact(f['advice'])} for f in values.get('findings', [])]
+        pending = [{'id': item.id, **item.value} for task in state.tasks for item in task.interrupts]
+        return {'thread_id': thread_id, 'values': values, 'next': list(state.next), 'pending': pending,
+                'checkpoint_id': state.config['configurable'].get('checkpoint_id') if state.config else None}
+
+    def resume(self, thread_id, decision, checkpoint_id, draft=None):
+        with self.lock:
+            state = self.graph.get_state(self.config(thread_id))
+            interrupts = [i for task in state.tasks for i in task.interrupts]
+            current_id = state.config['configurable'].get('checkpoint_id') if state.config else None
+            if not interrupts or current_id != checkpoint_id:
+                raise ValueError('Approval is missing or stale. Reload this thread before reviewing.')
+            if decision not in ('approve', 'deny', 'edit'):
+                raise ValueError('Unknown review decision.')
+            payload = {'decision': decision}
+            if decision == 'edit':
+                payload['draft'] = clean_draft(draft)
+            self.graph.invoke(Command(resume={interrupts[0].id: payload}), self.config(thread_id))
+            return self.snapshot(thread_id)
+
+    def threads(self):
+        # SQLite's checkpointer already indexes thread IDs; no duplicate conversation registry.
+        with self.lock:
+            self.checkpointer.setup()
+            ids = self.connection.execute("SELECT DISTINCT thread_id FROM checkpoints WHERE checkpoint_ns='' ORDER BY thread_id").fetchall()
+            return [self.snapshot(row[0]) for row in ids]
+
+    def tickets(self):
+        db = ticket_db(self.directory)
+        try:
+            return [{'ticket_id': f'IT-{row[0]:05d}', 'thread_id': row[1], 'draft': json.loads(row[2]),
+                     'decision': row[3], 'created_at': row[4]} for row in db.execute(
+                         'SELECT id,thread_id,payload,decision,created_at FROM tickets ORDER BY id DESC')]
+        finally:
+            db.close()
 
     def close(self):
         self.connection.close()

@@ -122,6 +122,35 @@ class ProjectChecks(unittest.TestCase):
             self.assertIsNotNone(result['values']['draft'])
             service.close()
 
+    def test_approval_api(self):
+        from fastapi.testclient import TestClient
+        from app.api import create_app
+        with tempfile.TemporaryDirectory() as directory:
+            with TestClient(create_app(directory)) as client:
+                for decision in ('deny', 'approve', 'edit-and-approve'):
+                    body = {'text': 'Campus wifi outage for all students', 'thread_id': decision}
+                    pending = client.post('/run', json=body).json()
+                    self.assertEqual(len(pending['pending']), 1)
+                    review = {'thread_id': decision, 'checkpoint_id': pending['checkpoint_id']}
+                    if decision == 'edit-and-approve':
+                        review['draft'] = {**pending['values']['draft'], 'title': 'Reviewed North Hall outage'}
+                    result = client.post('/' + decision, json=review)
+                    self.assertEqual(result.status_code, 200, result.text)
+                    self.assertEqual(result.json()['values']['write_result']['status'], 'denied' if decision == 'deny' else 'created')
+                    self.assertEqual(client.post('/' + decision, json=review).status_code, 409)
+                self.assertEqual(len(client.get('/tickets').json()), 2)
+                pending = client.post('/run', json={'text': 'Campus wifi outage for all students', 'thread_id': 'approve'}).json()
+                result = client.post('/approve', json={'thread_id': 'approve', 'checkpoint_id': pending['checkpoint_id']})
+                self.assertEqual(result.status_code, 200, result.text)
+                self.assertEqual(len(client.get('/tickets').json()), 2)
+                self.assertEqual(client.post('/run', json={'text': 'wifi', 'thread_id': 'hack', 'severity': 'high'}).status_code, 422)
+                self.assertEqual(client.post('/run', headers={'origin': 'https://evil.example'}, json={'text': 'wifi', 'thread_id': 'hack'}).status_code, 403)
+                pending = client.post('/run', json={'text': 'Delete campus account STU-1002', 'thread_id': 'restart-approval'}).json()
+            with TestClient(create_app(directory)) as client:
+                result = client.post('/approve', json={'thread_id': 'restart-approval', 'checkpoint_id': pending['checkpoint_id']})
+                self.assertEqual(result.status_code, 200, result.text)
+                self.assertEqual(result.json()['values']['write_result']['draft']['action'], 'account_deletion_review')
+
 
 if __name__ == '__main__':
     unittest.main()
