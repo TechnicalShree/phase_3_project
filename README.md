@@ -27,3 +27,4 @@ Each row corresponds to a tested implementation commit, not a retrospective labe
 | 5 | Bounded extractive summary and message/history trimming | Seven turns shrink to two plus a summary |
 | 6 | PII masking before checkpoints/model calls; injection and off-topic blocking; egress scan | Zero model calls for blocked input; no sample PII in checkpoints |
 | 7 | Independently compiled triage/research subgraphs and findings reducer | Subgraphs invoked outside the master graph |
+| 8 | Structured supervisor, worker return paths, delegation cap | research → specialist → FINISH; cap precedes model call |

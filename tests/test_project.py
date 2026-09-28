@@ -35,7 +35,8 @@ class ProjectChecks(unittest.TestCase):
                 fake.return_value.bind_tools.return_value.invoke.side_effect = lambda _: AIMessage(
                     content='', tool_calls=[{'name': 'check_service_status',
                     'args': {'service': 'wifi' if repeated else str(next(counter))}, 'id': 'loop'}])
-                result = build_graph().invoke({'text': 'wifi trouble'})
+                from app.graph import build_research
+                result = build_research().invoke({'text': 'wifi trouble', 'category': 'network'})
                 self.assertEqual(result['escalation'], expected)
                 self.assertLessEqual(result['iterations'], MAX_ITERATIONS)
 
@@ -85,6 +86,15 @@ class ProjectChecks(unittest.TestCase):
         self.assertEqual(triage['severity'], 'high')
         research = build_research().invoke({'text': 'wifi outage', **triage})
         self.assertIn('North Hall', research['response'])
+
+    def test_supervisor_and_limit(self):
+        from app.graph import supervisor, MAX_DELEGATIONS
+        result = build_graph().invoke({'text': 'wifi problem'})
+        self.assertEqual(result['routing'], ['research', 'specialist', 'FINISH'])
+        with patch('app.graph.model') as mock:
+            result = supervisor({'delegations': MAX_DELEGATIONS})
+            mock.assert_not_called()
+        self.assertEqual(result['escalation'], 'delegation_limit')
 
 
 if __name__ == '__main__':

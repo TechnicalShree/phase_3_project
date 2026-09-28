@@ -29,7 +29,8 @@ class Helpdesk:
         if previous.next:
             raise ValueError('This thread has unfinished work; resolve it before sending a new message.')
         return {**ingress(text, bool(previous.values.get('history'))), 'egress_checked': False, 'messages': Overwrite([]), 'iterations': 0, 'fingerprints': [],
-                'escalation': '', 'response': '', 'history': previous.values.get('history', [])}
+                'escalation': '', 'response': '', 'research_done': False, 'specialist_done': False,
+                'delegations': 0, 'routing': [], 'findings': Overwrite([]), 'history': previous.values.get('history', [])}
 
     def run_ticket(self, text, thread_id):
         with self.lock:
