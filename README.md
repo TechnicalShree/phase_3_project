@@ -26,7 +26,28 @@ Open **http://127.0.0.1:8000**. Interactive API documentation is at **http://127
 
 The default `MODEL_MODE=demo` is a **deterministic test double**, not an LLM. It runs the same real StateGraph, ToolNode, Send fan-out, SQLite persistence, interrupt, approval, and replay paths as live mode. It lets a reviewer verify control flow without credentials.
 
-For live **Command Code**, edit `.env`:
+For **Command Code Go**, install the supported headless CLI (Node.js 22+):
+
+```sh
+npm install --prefix .venv/commandcode command-code@1.66.0
+```
+
+Then edit `.env`:
+
+```dotenv
+MODEL_MODE=live
+LLM_PROVIDER=commandcode_cli
+CMD_API_KEY=your-local-key
+CMD_MODEL=stealth/space-bunny-alpha
+```
+
+Restart the server. The badge reads **COMMAND CODE GO · CLI · LIVE**. The existing FastAPI endpoints remain the application's HTTP interface. Each model decision invokes the official CLI with the key passed privately as `COMMAND_CODE_API_KEY`, a temporary working directory, no session persistence, and a 90-second timeout and at most two CLI turns per decision. A mod disables CLI tools; LangGraph remains responsible for lookup execution and human-approved writes. Install the CLI at the path above or set `CMD_CLI_PATH` to its executable.
+
+**Assessment distinction:** this adapter prompts for JSON and validates it with Pydantic. It converts validated tool decisions into `AIMessage.tool_calls` for the existing ToolNode. This is real LLM inference, but it is not native provider function calling. Use one of the API adapters below if the evaluator requires native function calling. CLI startup adds latency to every decision. No model/provider fallback occurs; free preview availability and pricing can change.
+
+Official references: [headless automation](https://commandcode.ai/docs/headless), [CLI authentication](https://commandcode.ai/docs/studio), [Go plan](https://commandcode.ai/docs/plans/go).
+
+For direct **Command Code Provider API** access (Go is excluded), edit `.env`:
 
 ```dotenv
 MODEL_MODE=live
@@ -46,7 +67,7 @@ OPENROUTER_API_KEY=your-local-key
 OPENROUTER_MODEL=openai/gpt-4.1-mini
 ```
 
-That selection uses `https://openrouter.ai/api/v1`. Live mode uses `with_structured_output(..., method="function_calling")` for classification, supervisor decisions and specialist findings, and `bind_tools()` for research and ticket drafting. Provider failures surface as errors; there is no silent fallback to demo mode or another provider.
+That selection uses `https://openrouter.ai/api/v1`. The native API adapters use `with_structured_output(..., method="function_calling")` for classification, supervisor decisions and specialist findings, and `bind_tools()` for research and ticket drafting. Provider failures surface as errors; there is no silent fallback to demo mode or another provider.
 
 Run the optional live check after configuring the key:
 
@@ -54,7 +75,7 @@ Run the optional live check after configuring the key:
 python scripts/live_smoke.py
 ```
 
-This sends fictional campus requests to the selected provider and consumes API credits. It checks real tool calls, specialist dispatch, an approval interrupt, and denial without writing a ticket. **Live model calls have not been verified because no provider key was configured.** Offline and real-process checks are documented in [verification evidence](docs/VERIFICATION.md).
+This sends fictional campus requests to the selected model and is subject to its current pricing. It checks real tool calls, specialist dispatch, an approval interrupt, and denial without writing a ticket. See the verification evidence for the tested transport; direct Provider API access returned `403 upgrade_required` on Go. Offline and real-process checks are documented in [verification evidence](docs/VERIFICATION.md).
 
 ## What to try
 

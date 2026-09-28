@@ -24,6 +24,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert calls, 'Live model did not call a lookup tool'
         assert len(values['findings']) >= 3, 'Live supervisor did not dispatch the specialists'
         assert result['values']['response'], 'No final answer'
+        print('PASS: live lookup and specialist dispatch.', flush=True)
         pending = service.run_ticket('Delete campus account STU-1002: the student has withdrawn. Request administrator review.', 'live-write')
         assert pending['pending'], 'High-severity action did not pause for approval'
         assert not service.tickets(), 'A ticket was written before approval'

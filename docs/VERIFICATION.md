@@ -47,9 +47,20 @@ The complete captured output is in [test-results.txt](test-results.txt).
 
 ## Remaining external steps
 
-- Configure a Command Code or OpenRouter key and run the opt-in live smoke test. Do not claim live verification until it passes.
+- Native Provider API and OpenRouter runs remain unverified. Command Code Go rejects Provider API calls with `403 upgrade_required`; its CLI is tested separately below.
 - Publish the repository publicly or share it with the instructor, then submit its GitHub URL. The local build has not been published or submitted.
 
 ## Command Code provider update
 
 The factory now selects Command Code or OpenRouter without adding a dependency. The provider-selection check verifies URL, model and key isolation for both providers, the UI health metadata, missing-key errors, and rejection of unknown providers. It also verifies that a temperature override is omitted for models that do not support it. The complete suite now has **17 passing checks**. Live provider calls still require a configured key and are not included in this claim.
+
+
+## Command Code Go CLI adapter
+
+Installed `command-code@1.66.0` inside the ignored `.venv/commandcode` directory. Go authentication succeeded through the documented headless CLI with `stealth/space-bunny-alpha`; the same account's direct Provider API returned `403 upgrade_required`.
+
+The adapter validates JSON against Pydantic schemas and converts allowed tool decisions into LangGraph tool calls. It disables CLI tools through a mod, uses temporary working directories, passes credentials through the environment, and does not persist CLI sessions. Native API function calling is not claimed for this transport. LangGraph owns execution, persistence and approvals.
+
+The suite has **18 passing checks**, including CLI schema validation, unknown-tool/argument rejection, required draft enforcement, timeout/nonzero-exit handling, and secret-free error messages. The initial live smoke attempt passed lookup/specialists but hit the one-turn CLI limit during the second request; the limit was increased to two while retaining the 90-second timeout and rejecting unsuccessful results.
+
+The complete live smoke retry **passed** using Space Bunny Alpha on Go: real classification, supervisor routing, account/service lookup execution, three specialist findings, validated ticket draft, approval interrupt, and denial with zero ticket records. The live test used a temporary SQLite directory. Native API providers remain unverified.
