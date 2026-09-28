@@ -41,7 +41,9 @@ The README screenshot is an actual running UI capture, not a design mockup.
 
 ## Reproducibility
 
-The initial staged build has been tested in its working virtual environment. A fresh-clone/fresh-virtual-environment check is recorded after the final source commit.
+A fresh local clone of source commit `0f25be0` was created outside the working tree. A new Python virtual environment was created with `python -m venv`, all pinned requirements were installed with pip, and the full suite ran from that clone: **16 checks passed in 5.105 seconds**. No reference PDFs, local `.env`, working-tree database or existing virtual environment were copied into it. The remaining evidence commit changes documentation/screenshots only.
+
+The complete captured output is in [test-results.txt](test-results.txt).
 
 ## Remaining external steps
 

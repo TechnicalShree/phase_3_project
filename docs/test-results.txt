@@ -1,0 +1,78 @@
+test_approval_api (test_project.ProjectChecks.test_approval_api) ... INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/deny "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/deny "HTTP/1.1 409 Conflict"
+INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/approve "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/approve "HTTP/1.1 409 Conflict"
+INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/edit-and-approve "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/edit-and-approve "HTTP/1.1 409 Conflict"
+INFO httpx2: HTTP Request: GET http://testserver/tickets "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/approve "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: GET http://testserver/tickets "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 422 Unprocessable Content"
+INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 403 Forbidden"
+INFO httpx2: HTTP Request: POST http://testserver/run "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/approve "HTTP/1.1 200 OK"
+ok
+test_auth_and_replay_input_boundary (test_project.ProjectChecks.test_auth_and_replay_input_boundary) ... INFO httpx2: HTTP Request: GET http://testserver/threads "HTTP/1.1 401 Unauthorized"
+INFO httpx2: HTTP Request: GET http://testserver/threads "HTTP/1.1 200 OK"
+INFO httpx2: HTTP Request: POST http://testserver/threads/nope/time-travel "HTTP/1.1 422 Unprocessable Content"
+INFO httpx2: HTTP Request: POST http://testserver/approve "HTTP/1.1 409 Conflict"
+ok
+test_blocked_turns_can_be_summarized (test_project.ProjectChecks.test_blocked_turns_can_be_summarized) ... WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+ok
+test_categories (test_project.ProjectChecks.test_categories) ... ok
+test_context_is_trimmed (test_project.ProjectChecks.test_context_is_trimmed) ... ok
+test_forensics_repair_preserves_history_and_gate (test_project.ProjectChecks.test_forensics_repair_preserves_history_and_gate) ... INFO app.guards: Egress guardrails: empty_response
+WARNING app.guards: Ingress guardrails: prompt_injection_blocked
+INFO app.guards: Egress guardrails: prompt_injection_blocked
+INFO app.guards: Egress guardrails: prompt_injection_blocked
+INFO app.guards: Egress guardrails: prompt_injection_blocked
+ok
+test_guardrails_before_model_and_storage (test_project.ProjectChecks.test_guardrails_before_model_and_storage) ... WARNING app.guards: Ingress guardrails: prompt_injection_blocked
+INFO app.guards: Egress guardrails: prompt_injection_blocked
+INFO app.guards: Egress guardrails: prompt_injection_blocked
+WARNING app.guards: Ingress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+INFO app.guards: Egress guardrails: off_topic_blocked
+WARNING app.guards: Ingress guardrails: pii_redacted
+INFO app.guards: Egress guardrails: pii_redacted
+INFO app.guards: Egress guardrails: pii_redacted
+INFO app.guards: Egress guardrails: egress_pii_redacted
+ok
+test_live_severity_floor_and_name_redaction (test_project.ProjectChecks.test_live_severity_floor_and_name_redaction) ... ok
+test_loop_circuit_breakers (test_project.ProjectChecks.test_loop_circuit_breakers) ... ok
+test_parallel_specialists (test_project.ProjectChecks.test_parallel_specialists) ... ok
+test_real_process_restart (test_project.ProjectChecks.test_real_process_restart) ... ok
+test_subgraphs_standalone (test_project.ProjectChecks.test_subgraphs_standalone) ... ok
+test_supervisor_and_limit (test_project.ProjectChecks.test_supervisor_and_limit) ... ok
+test_tools_are_called (test_project.ProjectChecks.test_tools_are_called) ... ok
+test_write_requires_interrupt (test_project.ProjectChecks.test_write_requires_interrupt) ... ok
+test_http_restart_and_stream (test_server.ServerChecks.test_http_restart_and_stream) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 5.105s
+
+OK
