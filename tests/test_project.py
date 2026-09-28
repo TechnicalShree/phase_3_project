@@ -96,6 +96,20 @@ class ProjectChecks(unittest.TestCase):
             mock.assert_not_called()
         self.assertEqual(result['escalation'], 'delegation_limit')
 
+    def test_parallel_specialists(self):
+        from threading import Barrier
+        from app.graph import specialist_advice
+        barrier = Barrier(3, timeout=3)
+        def synchronized(worker, text):
+            barrier.wait()
+            return specialist_advice(worker, text)
+        with patch('app.graph.specialist_advice', side_effect=synchronized):
+            result = build_graph().invoke({'text': 'wifi and laptop problem'})
+        findings = result['findings']
+        self.assertEqual(len(findings), 3)
+        self.assertLess(max(f['started_at'] for f in findings), min(f['finished_at'] for f in findings))
+        self.assertEqual({f['worker'] for f in findings if f['relevant']}, {'network', 'hardware'})
+
 
 if __name__ == '__main__':
     unittest.main()

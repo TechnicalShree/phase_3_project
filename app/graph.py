@@ -2,6 +2,9 @@
 import os
 import json
 import operator
+import time
+import threading
+from langgraph.types import Send
 import re
 from typing import Annotated
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
@@ -32,6 +35,7 @@ class Route(BaseModel):
 
 
 class State(TypedDict, total=False):
+    worker: str
     next_worker: str
     delegations: int
     research_done: bool
@@ -168,9 +172,48 @@ def supervisor(state):
             'routing': state.get('routing', []) + [choice]}
 
 
+class Finding(BaseModel):
+    advice: str
+    relevant: bool
+
+
+def specialist_advice(worker, text):
+    if os.getenv('MODEL_MODE', 'demo') == 'live':
+        return model().with_structured_output(Finding).invoke([
+            ('system', f'You are the campus {worker} specialist. Use only this policy: {KB[worker]}. '
+             'Mark irrelevant requests relevant=false. Never claim to have performed a write.'), ('human', text)])
+    terms = {'account': ('password', 'account', 'login', 'mfa'),
+             'network': ('wifi', 'wi-fi', 'network', 'internet', 'vpn'),
+             'hardware': ('laptop', 'printer', 'battery', 'hardware')}
+    return Finding(advice=KB[worker], relevant=any(word in text.lower() for word in terms[worker]))
+
+
 def specialist(state):
-    return {'findings': [{'worker': state['category'], 'advice': KB.get(state['category'], KB['general']),
-                          'relevant': True}], 'specialist_done': True}
+    start = time.time()
+    finding = specialist_advice(state['worker'], state['text'])
+    return {'findings': [{'worker': state['worker'], **finding.model_dump(), 'started_at': start,
+                          'finished_at': time.time(), 'thread': threading.get_ident()}]}
+
+
+def build_specialist():
+    graph = StateGraph(State)
+    graph.add_node('inspect', specialist)
+    graph.add_edge(START, 'inspect')
+    graph.add_edge('inspect', END)
+    return graph.compile()
+
+
+def dispatch(state):
+    return [Send('worker', {'worker': worker, 'text': state['text']})
+            for worker in ('account', 'network', 'hardware')]
+
+
+def synthesize(state):
+    findings = {item['worker']: item['advice'] for item in state.get('findings', []) if item['relevant']}
+    response = state.get('response', '')
+    if findings:
+        response += '\n\nSpecialist guidance:\n' + '\n'.join(f'{name.title()}: {advice}' for name, advice in sorted(findings.items()))
+    return {'response': response, 'specialist_done': True}
 
 
 def build_graph(checkpointer=None):
@@ -181,7 +224,12 @@ def build_graph(checkpointer=None):
     graph.add_node('research', build_research())
     graph.add_node('research_complete', lambda state: {'research_done': True})
     graph.add_node('supervisor', supervisor)
-    graph.add_node('specialist', specialist)
+    graph.add_node('specialist', lambda state: {})
+    worker_graph = build_specialist()
+    graph.add_node('worker', lambda state: {'findings': worker_graph.invoke(state)['findings']})
+    graph.add_node('synthesize', synthesize)
+    graph.add_conditional_edges('specialist', dispatch, ['worker'])
+    graph.add_edge('worker', 'synthesize')
     graph.add_node('egress', egress)
     graph.add_node('finish', lambda state: {'history': state.get('history', []) + [
         {'user': state['text'], 'assistant': state['response']}]})
@@ -194,7 +242,7 @@ def build_graph(checkpointer=None):
                                 {'research': 'research', 'specialist': 'specialist', 'FINISH': 'egress'})
     graph.add_edge('research', 'research_complete')
     graph.add_edge('research_complete', 'supervisor')
-    graph.add_edge('specialist', 'supervisor')
+    graph.add_edge('synthesize', 'supervisor')
     graph.add_edge('egress', 'finish')
     graph.add_edge('finish', 'summarize')
     graph.add_edge('summarize', END)
