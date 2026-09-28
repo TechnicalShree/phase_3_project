@@ -49,6 +49,17 @@ class ProjectChecks(unittest.TestCase):
             self.assertEqual(len(history), 2)
             self.assertEqual(history[0]['user'], 'wifi problem')
 
+    def test_context_is_trimmed(self):
+        from app.service import Helpdesk
+        with tempfile.TemporaryDirectory() as directory:
+            service = Helpdesk(directory)
+            for _ in range(7):
+                result = service.run_ticket('wifi problem', 'long')['values']
+            self.assertEqual(len(result['history']), 2)
+            self.assertTrue(result['summary'])
+            self.assertEqual(len(result['messages']), 1)
+            service.close()
+
 
 if __name__ == '__main__':
     unittest.main()

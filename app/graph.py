@@ -28,6 +28,7 @@ class State(TypedDict, total=False):
     iterations: int
     fingerprints: list[str]
     escalation: str
+    summary: str
     history: list[dict]
     text: str
     category: str
@@ -71,7 +72,8 @@ def agent(state):
         answer = model().bind_tools(READ_TOOLS).invoke([
             ('system', 'You are campus IT support. Use the available tools to check facts, '
              'then give concise actionable advice. Never claim to change an account.'),
-            HumanMessage(content=state['text']), *messages])
+            ('system', 'Previous conversation summary: ' + state.get('summary', '') + '\nRecent turns: ' +
+             json.dumps(state.get('history', []))), HumanMessage(content=state['text']), *messages])
     elif not messages or not isinstance(messages[-1], ToolMessage):
         account = re.search(r'\b(?:STU|STAFF)-\d{4}\b', state['text'], re.I)
         calls = [{'name': 'search_knowledge_base', 'args': {'category': state['category']}, 'id': 'kb'}]
@@ -94,6 +96,18 @@ def agent(state):
             'iterations': iterations + 1, 'fingerprints': fingerprints}
 
 
+def summarize(state):
+    history = state.get('history', [])
+    if len(history) <= 6:
+        return {}
+    old = state.get('summary', '')
+    digest = ' | '.join(f"Request: {turn['user'][:140]}; Advice: {turn['assistant'][:180]}" for turn in history[:-2])
+    # ponytail: bounded extractive summary; use model summarization if long-term semantic recall is needed.
+    from langgraph.types import Overwrite
+    return {'summary': (old + ' | ' + digest)[-1800:], 'history': history[-2:],
+            'messages': Overwrite([state['messages'][-1]])}
+
+
 def build_graph(checkpointer=None):
     graph = StateGraph(State)
     graph.add_node('classify', classify)
@@ -105,5 +119,7 @@ def build_graph(checkpointer=None):
     graph.add_edge('tools', 'agent')
     graph.add_node('finish', lambda state: {'history': state.get('history', []) + [
         {'user': state['text'], 'assistant': state['response']}]})
-    graph.add_edge('finish', END)
+    graph.add_node('summarize', summarize)
+    graph.add_edge('finish', 'summarize')
+    graph.add_edge('summarize', END)
     return graph.compile(checkpointer=checkpointer)
