@@ -79,3 +79,9 @@ Tested the deployed `https://campus-it.technicalshree.in/` through the browser U
 - Refreshed the deployed page and verified persisted records. The new browser test session had no console warnings or errors at the guardrail checkpoint.
 
 Two deployment/UI issues were fixed: connection settings were hidden in the footer, and Cloudflare cached the old JavaScript. The connection panel is now prominent and static asset URLs are versioned. Tests rerun on EC2: **18 Python checks and both browser-helper checks passed**. E2E-labelled threads and two mock tickets are retained as evidence; no real accounts were modified.
+
+## Support UI refinement (2026-09-28)
+
+The main flow now leads with describing an issue, readable controls, everyday examples, and concise progress stages with elapsed time. Request references, specialist detail, and execution metadata are available on demand. Ticket review sits directly below the answer. Recent requests use readable issue descriptions ordered by saved activity; mobile has an expandable request-history menu.
+
+Verified a real device-help request through the public UI from example selection to completed live answer. Checked saved-request loading on mobile, keyboard activation, and a 390px viewport without horizontal overflow. Desktop and mobile screenshots are saved in `docs/screenshots/support-desktop.png` and `support-mobile.png`. Eighteen Python checks and the browser helper checks pass. Authentication, approval gates, and checkpoint tooling remain in place.

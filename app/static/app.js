@@ -50,7 +50,7 @@ function show(data) {
   $('memory-panel').hidden = !values.history?.length && !values.summary; $('memory-count').textContent = `${values.history?.length || 0} recent turns`;
   $('memory').textContent = (values.summary ? `Earlier summary\n${values.summary}\n\n` : '') + (values.history || []).map(turn => `You: ${turn.user}\nDesk: ${turn.assistant}`).join('\n\n');
 }
-async function loadThread(id) {show(await call(`/threads/${encodeURIComponent(id)}`)); switchView('desk');}
+async function loadThread(id) {show(await call(`/threads/${encodeURIComponent(id)}`)); switchView('desk'); document.querySelector('.mobile-history').open = false; $('result-card').scrollIntoView({behavior:'smooth',block:'start'});}
 async function refresh() {
   [threads, tickets] = await Promise.all([call('/threads'), call('/tickets')]);
   const pending = threads.filter(thread => thread.pending.length);
