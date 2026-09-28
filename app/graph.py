@@ -10,7 +10,7 @@ from typing import Annotated
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from app.tools import READ_TOOLS, KB
+from app.tools import READ_TOOLS, KB, create_ticket, clean_draft
 from app.guards import ingress, egress
 from typing import Literal, TypedDict
 
@@ -35,6 +35,8 @@ class Route(BaseModel):
 
 
 class State(TypedDict, total=False):
+    draft: dict | None
+    write_result: dict | None
     worker: str
     next_worker: str
     delegations: int
@@ -216,6 +218,32 @@ def synthesize(state):
     return {'response': response, 'specialist_done': True}
 
 
+def draft_ticket(state):
+    if state.get('severity') != 'high' or state.get('blocked'):
+        return {'draft': None}
+    if os.getenv('MODEL_MODE', 'demo') == 'live':
+        answer = model().bind_tools([create_ticket], tool_choice='create_ticket').invoke([
+            ('system', 'Prepare a campus IT ticket using create_ticket. Only draft: a human reviews it. '
+             'Use account_deletion_review for deletion requests, incident otherwise. '
+             'Category must be account, network, hardware, or general.'), ('human', state['text'])])
+        if len(answer.tool_calls) != 1 or answer.tool_calls[0]['name'] != 'create_ticket':
+            raise ValueError('Model did not return one valid ticket draft.')
+        draft = answer.tool_calls[0]['args']
+    else:
+        draft = {'title': f"{state['category'].title()} support: {state['text'][:85]}",
+                 'details': state['text'], 'category': state['category'],
+                 'action': 'account_deletion_review' if 'delet' in state['text'].lower() else 'incident'}
+    return {'draft': clean_draft(draft)}
+
+
+def write_ticket(state, config):
+    result = create_ticket.invoke({**state['draft'], 'state': state}, config)
+    response = state.get('response', '')
+    response += ('\n\nTicket creation was denied; no record was written.' if result['status'] == 'denied'
+                 else f"\n\nCreated mock campus ticket {result['ticket_id']} after human approval.")
+    return {'write_result': result, 'response': response}
+
+
 def build_graph(checkpointer=None):
     graph = StateGraph(State)
     graph.add_node('ingress', ingress_node)
@@ -230,6 +258,10 @@ def build_graph(checkpointer=None):
     graph.add_node('synthesize', synthesize)
     graph.add_conditional_edges('specialist', dispatch, ['worker'])
     graph.add_edge('worker', 'synthesize')
+    graph.add_node('draft', draft_ticket)
+    graph.add_node('write', write_ticket)
+    graph.add_conditional_edges('draft', lambda state: 'write' if state.get('draft') else 'egress')
+    graph.add_edge('write', 'egress')
     graph.add_node('egress', egress)
     graph.add_node('finish', lambda state: {'history': state.get('history', []) + [
         {'user': state['text'], 'assistant': state['response']}]})
@@ -239,7 +271,7 @@ def build_graph(checkpointer=None):
     graph.add_edge('blocked', 'egress')
     graph.add_edge('triage', 'supervisor')
     graph.add_conditional_edges('supervisor', lambda state: state['next_worker'],
-                                {'research': 'research', 'specialist': 'specialist', 'FINISH': 'egress'})
+                                {'research': 'research', 'specialist': 'specialist', 'FINISH': 'draft'})
     graph.add_edge('research', 'research_complete')
     graph.add_edge('research_complete', 'supervisor')
     graph.add_edge('synthesize', 'supervisor')

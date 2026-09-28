@@ -37,3 +37,74 @@ def check_service_status(service: str) -> dict:
 
 
 READ_TOOLS = [lookup_campus_account, search_knowledge_base, check_service_status]
+
+# The write tool is deliberately excluded from READ_TOOLS / the research ToolNode.
+import hashlib
+import json
+import sqlite3
+from pathlib import Path
+from typing import Annotated, Literal
+from langchain_core.runnables import RunnableConfig
+from langgraph.prebuilt import InjectedState
+from langgraph.types import interrupt
+from pydantic import BaseModel, ConfigDict, Field
+from app.guards import INJECTION, redact
+
+
+class TicketDraft(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    title: str = Field(min_length=5, max_length=120)
+    details: str = Field(min_length=5, max_length=2000)
+    category: Literal['account', 'network', 'hardware', 'general']
+    action: Literal['incident', 'account_deletion_review'] = 'incident'
+
+
+def clean_draft(draft):
+    draft = TicketDraft.model_validate(draft).model_dump()
+    if any(INJECTION.search(draft[key]) for key in ('title', 'details')):
+        raise ValueError('Ticket text contains a blocked instruction.')
+    for key in ('title', 'details'):
+        draft[key] = redact(draft[key])
+    return TicketDraft.model_validate(draft).model_dump()
+
+
+def ticket_db(directory):
+    connection = sqlite3.connect(Path(directory) / 'tickets.sqlite')
+    connection.execute('''CREATE TABLE IF NOT EXISTS tickets (
+        id INTEGER PRIMARY KEY, idempotency_key TEXT UNIQUE NOT NULL,
+        thread_id TEXT NOT NULL, payload TEXT NOT NULL,
+        decision TEXT NOT NULL CHECK(decision IN ('approve','edit')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))''')
+    return connection
+
+
+@tool
+def create_ticket(title: str, details: str, category: str, action: str,
+                  state: Annotated[dict, InjectedState], config: RunnableConfig) -> dict:
+    """Create a mock campus incident or account-deletion review ticket after mandatory human approval.
+
+    Only high-severity cases are eligible. This never deletes an account.
+    """
+    if state.get('severity') != 'high' or state.get('blocked'):
+        raise PermissionError('Only unblocked high-severity requests may create tickets.')
+    draft = clean_draft({'title': title, 'details': details, 'category': category, 'action': action})
+    decision = interrupt({'kind': 'create_ticket', 'draft': draft,
+                          'notice': 'Creates a mock service-desk record. No account will be deleted.'})
+    if not isinstance(decision, dict) or decision.get('decision') not in ('approve', 'deny', 'edit'):
+        raise ValueError('Explicit approve, deny, or edit decision required.')
+    if decision['decision'] == 'deny':
+        return {'status': 'denied'}
+    if decision['decision'] == 'edit':
+        draft = clean_draft(decision['draft'])
+    thread_id = config['configurable']['thread_id']
+    payload = json.dumps(draft, sort_keys=True)
+    key = hashlib.sha256((thread_id + '\n' + payload).encode()).hexdigest()
+    db = ticket_db(config['configurable']['data_dir'])
+    try:
+        with db:
+            db.execute('INSERT OR IGNORE INTO tickets(idempotency_key, thread_id, payload, decision) VALUES (?,?,?,?)',
+                       (key, thread_id, payload, decision['decision']))
+            row = db.execute('SELECT id, created_at FROM tickets WHERE idempotency_key=?', (key,)).fetchone()
+        return {'status': 'created', 'ticket_id': f'IT-{row[0]:05d}', 'created_at': row[1], 'draft': draft}
+    finally:
+        db.close()

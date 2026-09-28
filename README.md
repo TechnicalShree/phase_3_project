@@ -29,3 +29,4 @@ Each row corresponds to a tested implementation commit, not a retrospective labe
 | 7 | Independently compiled triage/research subgraphs and findings reducer | Subgraphs invoked outside the master graph |
 | 8 | Structured supervisor, worker return paths, delegation cap | research → specialist → FINISH; cap precedes model call |
 | 9 | Send fan-out to three compiled specialists and synthesis | Three-party barrier proves concurrent execution; irrelevant advice filtered |
+| 10 | Severity-gated ticket draft, bound write tool, unique idempotency key | Write tool interrupts before touching the ticket database |

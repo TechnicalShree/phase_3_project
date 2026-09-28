@@ -110,6 +110,18 @@ class ProjectChecks(unittest.TestCase):
         self.assertLess(max(f['started_at'] for f in findings), min(f['finished_at'] for f in findings))
         self.assertEqual({f['worker'] for f in findings if f['relevant']}, {'network', 'hardware'})
 
+    def test_write_requires_interrupt(self):
+        from app.service import Helpdesk
+        from app.tools import ticket_db
+        with tempfile.TemporaryDirectory() as directory:
+            service = Helpdesk(directory)
+            result = service.run_ticket('Campus wifi outage for all students', 'gate')
+            self.assertEqual(result['next'], ['write'])
+            with ticket_db(directory) as db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0], 0)
+            self.assertIsNotNone(result['values']['draft'])
+            service.close()
+
 
 if __name__ == '__main__':
     unittest.main()
