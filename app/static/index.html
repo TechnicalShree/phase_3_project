@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Campus IT Desk · Support workspace</title><link rel="stylesheet" href="/static/style.css?v=experience-1"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Campus IT Desk · Support workspace</title><link rel="stylesheet" href="/static/style.css?v=experience-2"></head>
 <body>
 <aside class="sidebar">
   <a class="brand" href="/"><span class="brand-mark">c<span>•</span></span><span>campus<span class="brand-sub">IT SERVICE DESK</span></span></a>
@@ -27,9 +27,9 @@
         <details id="findings-panel" class="card supporting-details" hidden><summary>Advice from our specialists</summary><div class="card-heading"><h2>Specialist findings</h2><span class="subtle-label">PARALLEL REVIEW</span></div><div id="findings" class="findings"></div></details>
         <details id="memory-panel" class="card memory" hidden><summary>Conversation memory <span id="memory-count"></span></summary><div id="memory"></div></details>
       </div><aside class="desk-aside">
-        
+
         <section class="card workflow-card"><p class="eyebrow">HOW IT WORKS</p><h2>A clear path to a fix.</h2><ol class="workflow"><li><span>01</span><div><strong>Tell us what’s wrong</strong><p>Include the location and anything you’ve already tried.</p></div></li><li><span>02</span><div><strong>Get practical guidance</strong><p>We check campus information and suggest your next steps.</p></div></li><li><span>03</span><div><strong>Stay in control</strong><p>If a ticket is needed, you review it before it’s created.</p></div></li></ol><div class="workflow-foot"><span class="online-dot"></span> Your progress is saved</div></section>
-        
+
       </aside></div>
     </section>
     <section id="view-approvals" class="view" hidden><div class="page-heading"><div><p class="eyebrow">HUMAN OVERSIGHT</p><h1>Tickets awaiting your review</h1><p class="lede">Check the details, make changes, or decline a proposed ticket.</p></div></div><div id="approval-list" class="record-list"></div></section>
@@ -37,5 +37,5 @@
     <section id="view-forensics" class="view" hidden><p class="advanced-note">Advanced tools for reviewing how a request was handled. <a href="/docs" target="_blank" rel="noopener">API documentation ↗</a></p><div class="page-heading"><div><p class="eyebrow">CHECKPOINT LAB</p><h1>Understand every turn.</h1><p class="lede">Inspect state history and replay a correction without erasing the original.</p></div><button id="demo-fault" class="button dark">＋ Create fault demo</button></div><div class="card lab-controls"><div><label for="forensic-thread">Conversation ID</label><input id="forensic-thread" placeholder="Choose a saved thread"></div><button id="inspect" class="button secondary">Inspect history</button><button id="find-bad" class="button secondary">Find bad checkpoint</button></div><div id="anomaly-summary" class="notice info">Select a thread, or create a controlled invalid-category fault in demo mode.</div><div class="lab-grid"><section class="card timeline-card"><div class="card-heading"><h2>Checkpoint timeline</h2><span id="checkpoint-count" class="pill neutral">0 SAVED</span></div><div class="table-scroll"><table><thead><tr><th>Step</th><th>Next node</th><th>Category</th><th>Signals</th><th>Inspect</th></tr></thead><tbody id="timeline"><tr><td colspan="5" class="table-empty">Your execution history will appear here.</td></tr></tbody></table></div></section><section class="card replay-card"><p class="eyebrow">CORRECT & REPLAY</p><h2>A new branch. Same safeguards.</h2><p>Choose a checkpoint after classification. Correct its category and re-run downstream workers.</p><label for="checkpoint">Source checkpoint</label><input id="checkpoint" readonly placeholder="Select from the timeline"><label for="correction">Corrected category</label><select id="correction"><option>network</option><option>account</option><option>hardware</option><option>general</option></select><button id="replay" class="button primary full" disabled>Replay corrected branch ↗</button><p class="review-note">Writes pause for fresh approval, even if an earlier branch was approved. Original checkpoints remain available.</p><pre id="checkpoint-detail"></pre></section></div></section>
     <footer><span>Campus IT Desk <span class="footer-dot">·</span> Demo workspace · Fictional campus records</span></footer>
   </main>
-</div><script src="/static/app.js?v=experience-1"></script>
+</div><script src="/static/app.js?v=experience-2"></script>
 </body></html>
