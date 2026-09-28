@@ -207,6 +207,8 @@ class ProjectChecks(unittest.TestCase):
         from app.api import create_app
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, API_TOKEN='test-token'):
             with TestClient(create_app(directory)) as client:
+                self.assertTrue(client.get('/health').json()['auth_required'])
+                self.assertNotIn('test-token', client.get('/health').text)
                 self.assertEqual(client.get('/threads').status_code, 401)
                 headers = {'Authorization': 'Bearer test-token'}
                 self.assertEqual(client.get('/threads', headers=headers).status_code, 200)

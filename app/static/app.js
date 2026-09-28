@@ -10,8 +10,16 @@ let state = null, threads = [], tickets = [], forensicData = null, busy = false;
 $('token').value = sessionStorage.getItem('campus-token') || '';
 function headers() {return {'Content-Type': 'application/json', ...($('token').value ? {Authorization: `Bearer ${$('token').value}`} : {})};}
 function notice(message = '', error = true) {$('notice').textContent = message; $('notice').hidden = !message; $('notice').className = error ? 'notice' : 'notice info';}
+function requireConnection() {
+  $('connection').open = true;
+  $('connection-label').textContent = 'Connect to the helpdesk';
+  $('token').focus();
+  return 'Enter your app access token in the connection panel above, then select Connect.';
+}
+function checkAuth(response) {if (response.status === 401) throw new Error(requireConnection());}
 async function call(path, body) {
   const response = await fetch(path, {method: body === undefined ? 'GET' : 'POST', headers: headers(), ...(body === undefined ? {} : {body: JSON.stringify(body)})});
+  checkAuth(response);
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));
   return data;
@@ -63,6 +71,7 @@ function handleEvent(event) {
 async function submit() {
   $('steps').replaceChildren(); $('review').hidden = true; $('result-dot').className = 'status-dot running'; $('result-status').textContent = 'PROCESSING'; $('response').textContent = 'Screening the request and gathering campus information…';
   const response = await fetch('/stream', {method:'POST', headers:headers(), body:JSON.stringify({text:$('text').value,thread_id:$('thread').value})});
+  checkAuth(response);
   if (!response.ok) {const data = await response.json(); throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));}
   const reader = response.body.getReader(), decoder = new TextDecoder(); let buffer = '', complete = false;
   try {while (true) {const {value,done} = await reader.read(); if (done) break; buffer += decoder.decode(value,{stream:true}); let split; while ((split = buffer.indexOf('\n\n')) >= 0) {const chunk = buffer.slice(0,split); buffer = buffer.slice(split+2); if (chunk.startsWith('data: ')) {const event = JSON.parse(chunk.slice(6)); handleEvent(event); if (event.event === 'result') complete = true;}}} if (!complete) throw new Error('The stream ended early. Load this thread to see its saved state.');}
@@ -81,7 +90,7 @@ async function inspect() {
 function selectCheckpoint(item) {$('checkpoint').value = item.checkpoint_id; $('correction').value = ['account','network','hardware','general'].includes(item.category) ? item.category : 'network'; $('checkpoint-detail').textContent = JSON.stringify(item,null,2); $('replay').disabled = !item.category || busy; document.querySelectorAll('#timeline tr').forEach(row => row.classList.toggle('selected',row.dataset.checkpoint === item.checkpoint_id));}
 $('request-form').onsubmit = event => {event.preventDefault(); act(submit);};
 $('load').onclick = () => act(() => loadThread($('thread').value)); $('new-thread').onclick = newThread; $('refresh').onclick = () => act(refresh);
-$('connect').onclick = () => act(async () => {sessionStorage.setItem('campus-token',$('token').value); await refresh(); notice('Connected.',false);});
+$('connect').onclick = () => act(async () => {$('token').value = $('token').value.trim(); await refresh(); sessionStorage.setItem('campus-token',$('token').value); $('connection').open = false; $('connection-label').textContent = 'Connected · Connection settings'; notice('Connected. You can now send a request.',false);});
 document.querySelectorAll('[data-example]').forEach(button => button.onclick = () => {$('text').value = examples[button.dataset.example]; $('text').focus();});
 document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => {switchView(button.dataset.view); if (button.dataset.view === 'forensics' && state) {$('forensic-thread').value = state.thread_id; act(inspect);} else if (button.dataset.view !== 'desk') act(refresh);});
 document.querySelectorAll('[data-action]').forEach(button => button.onclick = () => act(async () => {if (!state?.pending.length) throw new Error('Reload the pending request before reviewing.'); const body = {thread_id:state.thread_id,checkpoint_id:state.checkpoint_id}; if (button.dataset.action === 'edit-and-approve') body.draft = {title:$('draft-title').value,details:$('draft-details').value,category:$('draft-category').value,action:$('draft-action').value}; show(await call(`/${button.dataset.action}`,body)); await refresh();}));
@@ -89,4 +98,4 @@ $('inspect').onclick = () => act(inspect);
 $('find-bad').onclick = () => act(async () => {await inspect(); const bad = forensicData.bad_checkpoint; if (!bad) {notice('No anomaly was detected in this thread.',false); return;} const id = bad.parent_config?.configurable?.checkpoint_id || bad.checkpoint_id; const item = forensicData.timeline.find(item => item.checkpoint_id === id); if (item) selectCheckpoint(item); notice('Selected the checkpoint immediately before the detected anomaly. Review the category, then replay.',false);});
 $('demo-fault').onclick = () => act(async () => {const id = `fault-${newId()}`; const result = await call(`/threads/${id}/demo-fault`,{}); show(result.state); $('forensic-thread').value = id; await inspect(); await refresh(); notice('Controlled fault created: invalid_demo category. Find the bad checkpoint, correct to network, and replay.',false);});
 $('replay').onclick = () => act(async () => {const id = $('forensic-thread').value; const result = await call(`/threads/${encodeURIComponent(id)}/time-travel`,{checkpoint_id:$('checkpoint').value,category:$('correction').value}); show(result); await refresh(); await inspect(); notice(result.pending.length ? 'New branch created. Ticket creation is paused for fresh approval in Support desk.' : 'New branch completed. Original checkpoints are preserved.',false);});
-(async () => {newThread(); try {const health = await call('/health'); $('mode').textContent = health.mode === 'live' ? `${health.provider === 'commandcode_cli' ? 'COMMAND CODE GO · CLI' : health.provider === 'commandcode' ? 'COMMAND CODE' : 'OPENROUTER'} · LIVE` : 'OFFLINE DEMO'; $('demo-fault').hidden = health.mode !== 'demo'; await refresh(); const saved = localStorage.getItem('campus-thread'); if (saved && threads.some(thread => thread.thread_id === saved)) show(await call(`/threads/${encodeURIComponent(saved)}`));} catch(error) {notice(error.message);}})();
+(async () => {newThread(); try {const health = await call('/health'); $('mode').textContent = health.mode === 'live' ? `${health.provider === 'commandcode_cli' ? 'COMMAND CODE GO · CLI' : health.provider === 'commandcode' ? 'COMMAND CODE' : 'OPENROUTER'} · LIVE` : 'OFFLINE DEMO'; $('demo-fault').hidden = health.mode !== 'demo'; if (health.auth_required && !$('token').value) {notice(requireConnection(),false); return;} await refresh(); $('connection-label').textContent = 'Connected · Connection settings'; const saved = localStorage.getItem('campus-thread'); if (saved && threads.some(thread => thread.thread_id === saved)) show(await call(`/threads/${encodeURIComponent(saved)}`));} catch(error) {notice(error.message);}})();

@@ -10,3 +10,13 @@ const first = context.newId(), second = context.newId();
 assert.match(first, /^[a-f0-9]{32}$/);
 assert.notEqual(first, second);
 console.log('PASS: browser IDs work without crypto.randomUUID.');
+
+const elements = {'connection': {open: false}, 'connection-label': {}, 'token': {focus() {this.focused = true;}}};
+context.$ = id => elements[id];
+const source = fs.readFileSync('app/static/app.js', 'utf8');
+vm.runInContext(source.slice(source.indexOf('function requireConnection()'), source.indexOf('async function call(')), context);
+assert.throws(() => context.checkAuth({status: 401}), /app access token/);
+assert.equal(elements.connection.open, true);
+assert.equal(elements.token.focused, true);
+assert.doesNotThrow(() => context.checkAuth({status: 200}));
+console.log('PASS: unauthorized responses open the connection panel.');
