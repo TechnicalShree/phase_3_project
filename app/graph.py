@@ -28,6 +28,7 @@ class State(TypedDict, total=False):
     iterations: int
     fingerprints: list[str]
     escalation: str
+    history: list[dict]
     text: str
     category: str
     severity: str
@@ -100,6 +101,9 @@ def build_graph(checkpointer=None):
     graph.add_node('agent', agent)
     graph.add_node('tools', ToolNode(READ_TOOLS))
     graph.add_edge('classify', 'agent')
-    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else END)
+    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else 'finish')
     graph.add_edge('tools', 'agent')
+    graph.add_node('finish', lambda state: {'history': state.get('history', []) + [
+        {'user': state['text'], 'assistant': state['response']}]})
+    graph.add_edge('finish', END)
     return graph.compile(checkpointer=checkpointer)

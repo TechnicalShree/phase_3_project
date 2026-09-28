@@ -23,3 +23,4 @@ Each row corresponds to a tested implementation commit, not a retrospective labe
 | 1 | Typed StateGraph and conditional category routing; live structured classification | Four category routing cases |
 | 2 | Three bound lookup tools and a real ToolNode loop | Tool call names and campus facts verified |
 | 3 | ReAct iteration cap and duplicate tool fingerprint detection | Adversarial model doubles stop without timeout |
+| 4 | SQLite checkpoints, thread IDs, run/stream entry points | Separate Python processes continue the same conversation |

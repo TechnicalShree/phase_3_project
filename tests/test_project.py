@@ -1,4 +1,8 @@
 import os
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 from langchain_core.messages import AIMessage
@@ -34,6 +38,16 @@ class ProjectChecks(unittest.TestCase):
                 result = build_graph().invoke({'text': 'wifi trouble'})
                 self.assertEqual(result['escalation'], expected)
                 self.assertLessEqual(result['iterations'], MAX_ITERATIONS)
+
+    def test_real_process_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            script = "from app.service import Helpdesk; import sys,json; s=Helpdesk(sys.argv[1]); "
+            first = script + "s.run_ticket('wifi problem', 'restart'); s.close()"
+            subprocess.run([sys.executable, '-c', first, directory], check=True)
+            second = script + "print(json.dumps(s.run_ticket('password reset', 'restart')['values']['history'])); s.close()"
+            history = json.loads(subprocess.check_output([sys.executable, '-c', second, directory], text=True))
+            self.assertEqual(len(history), 2)
+            self.assertEqual(history[0]['user'], 'wifi problem')
 
 
 if __name__ == '__main__':
