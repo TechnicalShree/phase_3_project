@@ -1,0 +1,20 @@
+[Unit]
+Description=Campus IT Helpdesk
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/projects/ns_phase_3
+ExecStart=/home/ubuntu/projects/ns_phase_3/.venv/bin/uvicorn app.api:app --host 0.0.0.0 --port 8081
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
