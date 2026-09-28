@@ -1,5 +1,6 @@
 """Campus IT graph. MODEL_MODE=demo is an explicit offline test double."""
 import os
+import json
 import re
 from typing import Annotated
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
@@ -13,6 +14,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
 load_dotenv()
+MAX_ITERATIONS = 4
 Category = Literal['account', 'network', 'hardware', 'general']
 
 
@@ -23,6 +25,9 @@ class Triage(BaseModel):
 
 class State(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
+    iterations: int
+    fingerprints: list[str]
+    escalation: str
     text: str
     category: str
     severity: str
@@ -55,6 +60,11 @@ def classify(state):
 
 
 def agent(state):
+    iterations = state.get('iterations', 0)
+    if iterations >= MAX_ITERATIONS:
+        return {'messages': [AIMessage(content='Agent stopped at its iteration limit; human review required.')],
+                'response': 'Agent stopped at its iteration limit; human review required.',
+                'escalation': 'iteration_limit'}
     messages = state.get('messages', [])
     if os.getenv('MODEL_MODE', 'demo') == 'live':
         answer = model().bind_tools(READ_TOOLS).invoke([
@@ -71,7 +81,16 @@ def agent(state):
         answer = AIMessage(content='', tool_calls=calls)
     else:
         answer = AIMessage(content='\n'.join(str(m.content) for m in messages if isinstance(m, ToolMessage)))
-    return {'messages': [answer], 'response': str(answer.content)}
+    fingerprints = list(state.get('fingerprints', []))
+    for call in answer.tool_calls:
+        fingerprint = json.dumps([call['name'], call['args']], sort_keys=True)
+        if fingerprint in fingerprints:
+            return {'messages': [AIMessage(content='Repeated tool call stopped; human review required.')],
+                    'response': 'Repeated tool call stopped; human review required.',
+                    'escalation': 'duplicate_tool_call', 'iterations': iterations + 1}
+        fingerprints.append(fingerprint)
+    return {'messages': [answer], 'response': str(answer.content),
+            'iterations': iterations + 1, 'fingerprints': fingerprints}
 
 
 def build_graph(checkpointer=None):
