@@ -1,5 +1,11 @@
 """Campus IT graph. MODEL_MODE=demo is an explicit offline test double."""
 import os
+import re
+from typing import Annotated
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+from app.tools import READ_TOOLS
 from typing import Literal, TypedDict
 
 from dotenv import load_dotenv
@@ -16,6 +22,7 @@ class Triage(BaseModel):
 
 
 class State(TypedDict, total=False):
+    messages: Annotated[list[AnyMessage], add_messages]
     text: str
     category: str
     severity: str
@@ -47,12 +54,33 @@ def classify(state):
     ) else 'low'}
 
 
+def agent(state):
+    messages = state.get('messages', [])
+    if os.getenv('MODEL_MODE', 'demo') == 'live':
+        answer = model().bind_tools(READ_TOOLS).invoke([
+            ('system', 'You are campus IT support. Use the available tools to check facts, '
+             'then give concise actionable advice. Never claim to change an account.'),
+            HumanMessage(content=state['text']), *messages])
+    elif not messages or not isinstance(messages[-1], ToolMessage):
+        account = re.search(r'\b(?:STU|STAFF)-\d{4}\b', state['text'], re.I)
+        calls = [{'name': 'search_knowledge_base', 'args': {'category': state['category']}, 'id': 'kb'}]
+        if account:
+            calls.append({'name': 'lookup_campus_account', 'args': {'account_id': account[0]}, 'id': 'account'})
+        if state['category'] == 'network':
+            calls.append({'name': 'check_service_status', 'args': {'service': 'wifi'}, 'id': 'status'})
+        answer = AIMessage(content='', tool_calls=calls)
+    else:
+        answer = AIMessage(content='\n'.join(str(m.content) for m in messages if isinstance(m, ToolMessage)))
+    return {'messages': [answer], 'response': str(answer.content)}
+
+
 def build_graph(checkpointer=None):
     graph = StateGraph(State)
     graph.add_node('classify', classify)
     graph.add_edge(START, 'classify')
-    for category in ('account', 'network', 'hardware', 'general'):
-        graph.add_node(category, lambda state: {'response': f"Routed to {state['category']} support."})
-        graph.add_edge(category, END)
-    graph.add_conditional_edges('classify', lambda state: state['category'])
+    graph.add_node('agent', agent)
+    graph.add_node('tools', ToolNode(READ_TOOLS))
+    graph.add_edge('classify', 'agent')
+    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else END)
+    graph.add_edge('tools', 'agent')
     return graph.compile(checkpointer=checkpointer)
