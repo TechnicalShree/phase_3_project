@@ -49,6 +49,12 @@ class ProjectChecks(unittest.TestCase):
             history = json.loads(subprocess.check_output([sys.executable, '-c', second, directory], text=True))
             self.assertEqual(len(history), 2)
             self.assertEqual(history[0]['user'], 'wifi problem')
+            from app.service import Helpdesk
+            desk = Helpdesk(directory)
+            try:
+                self.assertTrue(desk.snapshot('restart')['updated_at'])
+            finally:
+                desk.close()
 
     def test_context_is_trimmed(self):
         from app.service import Helpdesk

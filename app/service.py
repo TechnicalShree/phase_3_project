@@ -58,7 +58,7 @@ class Helpdesk:
             values['messages'] = [{'type': m.type, 'content': redact(str(m.content))} for m in values.get('messages', [])]
             values['findings'] = [{**f, 'advice': redact(f['advice'])} for f in values.get('findings', [])]
         pending = [{'id': item.id, **item.value} for task in state.tasks for item in task.interrupts]
-        return {'thread_id': thread_id, 'values': values, 'next': list(state.next), 'pending': pending,
+        return {'thread_id': thread_id, 'updated_at': state.created_at, 'values': values, 'next': list(state.next), 'pending': pending,
                 'checkpoint_id': state.config['configurable'].get('checkpoint_id') if state.config else None}
 
     def resume(self, thread_id, decision, checkpoint_id, draft=None):
