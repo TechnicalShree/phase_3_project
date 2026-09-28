@@ -34,6 +34,12 @@ class ReviewRequest(BaseModel):
     draft: TicketDraft | None = None
 
 
+class ReplayRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    checkpoint_id: str = Field(min_length=1, max_length=100)
+    category: Literal['account', 'network', 'hardware', 'general']
+
+
 def authorize(request: Request):
     token = os.getenv('API_TOKEN', '')
     if token:
@@ -101,12 +107,37 @@ def create_app(directory=None):
     def pending(desk=Depends(service)):
         return [thread for thread in desk.threads() if thread['pending']]
 
-    @app.post('/{decision}', dependencies=[Depends(authorize)])
-    def review(decision: Literal['approve', 'deny', 'edit-and-approve'], body: ReviewRequest, desk=Depends(service)):
-        if decision == 'edit-and-approve' and body.draft is None:
+    def review(decision, body, desk):
+        if decision == 'edit' and body.draft is None:
             raise HTTPException(422, 'Edited draft is required.')
-        return perform(desk.resume, body.thread_id, 'edit' if decision == 'edit-and-approve' else decision,
-                       body.checkpoint_id, body.draft.model_dump() if body.draft else None)
+        return perform(desk.resume, body.thread_id, decision, body.checkpoint_id,
+                       body.draft.model_dump() if body.draft else None)
+
+    @app.post('/approve', dependencies=[Depends(authorize)])
+    def approve(body: ReviewRequest, desk=Depends(service)):
+        return review('approve', body, desk)
+
+    @app.post('/deny', dependencies=[Depends(authorize)])
+    def deny(body: ReviewRequest, desk=Depends(service)):
+        return review('deny', body, desk)
+
+    @app.post('/edit-and-approve', dependencies=[Depends(authorize)])
+    def edit_and_approve(body: ReviewRequest, desk=Depends(service)):
+        return review('edit', body, desk)
+
+    @app.get('/forensics/{thread_id}', dependencies=[Depends(authorize)])
+    def forensics(thread_id: str, desk=Depends(service)):
+        return desk.forensics(thread_id)
+
+    @app.post('/threads/{thread_id}/time-travel', dependencies=[Depends(authorize)])
+    def time_travel(thread_id: str, body: ReplayRequest, desk=Depends(service)):
+        return perform(desk.time_travel, thread_id, body.checkpoint_id, body.category)
+
+    @app.post('/threads/{thread_id}/demo-fault', dependencies=[Depends(authorize)])
+    def demo_fault(thread_id: str, desk=Depends(service)):
+        if os.getenv('MODEL_MODE', 'demo') != 'demo':
+            raise HTTPException(403, 'Fault injection is available only in offline demo mode.')
+        return perform(desk.demo_fault, thread_id)
 
     @app.get('/tickets', dependencies=[Depends(authorize)])
     def tickets(desk=Depends(service)):

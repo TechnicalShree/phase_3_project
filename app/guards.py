@@ -7,10 +7,10 @@ PII = [
     (re.compile(r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b', re.I), '[EMAIL]'),
     (re.compile(r'(?<!\d)(?:\d[ -]?){13,19}(?!\d)'), '[CARD]'),
     (re.compile(r'(?<!\w)(?:\+?\d[ .()-]?){10,12}(?!\w)'), '[PHONE]'),
-    (re.compile(r'\b(my name is|name\s*:)\s+[A-Za-z]+(?:\s+[A-Z][a-z]+){0,3}'), r'\1 [NAME]'),
+    (re.compile(r'\b((?i:my name is|name\s*:))\s+[A-Za-z]+(?:\s+[A-Z][a-z]+){0,3}'), r'\1 [NAME]'),
 ]
 INJECTION = re.compile(
-    r'ignore\s+(?:all\s+)?(?:previous|prior|system|above)|'
+    r'ignore\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|system|above)|'
     r'(?:reveal|show|print|override|bypass)\b.{0,35}\b(?:prompt|instructions|secret|approval|guardrail)|'
     r'\b(?:system\s*prompt|developer\s*message|jailbreak)\b|'
     r'<\|(?:im_start|system)|\[INST\]', re.I)
