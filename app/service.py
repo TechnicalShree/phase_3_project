@@ -7,6 +7,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Overwrite
 
 from app.graph import build_graph
+from app.guards import ingress
 
 
 class Helpdesk:
@@ -27,7 +28,7 @@ class Helpdesk:
         previous = self.graph.get_state(self.config(thread_id))
         if previous.next:
             raise ValueError('This thread has unfinished work; resolve it before sending a new message.')
-        return {'text': text, 'messages': Overwrite([]), 'iterations': 0, 'fingerprints': [],
+        return {**ingress(text, bool(previous.values.get('history'))), 'egress_checked': False, 'messages': Overwrite([]), 'iterations': 0, 'fingerprints': [],
                 'escalation': '', 'response': '', 'history': previous.values.get('history', [])}
 
     def run_ticket(self, text, thread_id):

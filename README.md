@@ -25,3 +25,4 @@ Each row corresponds to a tested implementation commit, not a retrospective labe
 | 3 | ReAct iteration cap and duplicate tool fingerprint detection | Adversarial model doubles stop without timeout |
 | 4 | SQLite checkpoints, thread IDs, run/stream entry points | Separate Python processes continue the same conversation |
 | 5 | Bounded extractive summary and message/history trimming | Seven turns shrink to two plus a summary |
+| 6 | PII masking before checkpoints/model calls; injection and off-topic blocking; egress scan | Zero model calls for blocked input; no sample PII in checkpoints |

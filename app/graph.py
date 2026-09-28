@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMes
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from app.tools import READ_TOOLS
+from app.guards import ingress, egress
 from typing import Literal, TypedDict
 
 from dotenv import load_dotenv
@@ -28,6 +29,9 @@ class State(TypedDict, total=False):
     iterations: int
     fingerprints: list[str]
     escalation: str
+    guardrails: list[str]
+    blocked: bool
+    egress_checked: bool
     summary: str
     history: list[dict]
     text: str
@@ -111,12 +115,21 @@ def summarize(state):
 def build_graph(checkpointer=None):
     graph = StateGraph(State)
     graph.add_node('classify', classify)
-    graph.add_edge(START, 'classify')
+    graph.add_node('ingress', lambda state: {**ingress(state['text'], bool(state.get('history'))),
+                       'guardrails': list(dict.fromkeys(state.get('guardrails', []) +
+                           ingress(state['text'], bool(state.get('history')))['guardrails']))}
+                   if not state.get('blocked') else {})
+    graph.add_node('blocked', lambda state: {'response': 'This request was blocked. I can help with campus IT issues.'})
+    graph.add_edge(START, 'ingress')
+    graph.add_conditional_edges('ingress', lambda state: 'blocked' if state.get('blocked') else 'classify')
+    graph.add_edge('blocked', 'egress')
     graph.add_node('agent', agent)
     graph.add_node('tools', ToolNode(READ_TOOLS))
     graph.add_edge('classify', 'agent')
-    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else 'finish')
+    graph.add_conditional_edges('agent', lambda state: 'tools' if state['messages'][-1].tool_calls else 'egress')
     graph.add_edge('tools', 'agent')
+    graph.add_node('egress', egress)
+    graph.add_edge('egress', 'finish')
     graph.add_node('finish', lambda state: {'history': state.get('history', []) + [
         {'user': state['text'], 'assistant': state['response']}]})
     graph.add_node('summarize', summarize)
