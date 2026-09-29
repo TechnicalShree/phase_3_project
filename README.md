@@ -2,7 +2,9 @@
 
 **Chosen domain: Campus IT Helpdesk (Option 1).** An original campus support application demonstrating LangGraph orchestration, durable checkpoints, human-approved writes, and time-travel debugging.
 
-**Submission option B: GitHub repository.** Runs locally with Python 3.12; no Docker, GPU, frontend build, or external database required. Campus records and service status are fictional. A ticket is a real row in a local mock service-desk database; this app never deletes actual accounts.
+**Live app: https://campus-it.technicalshree.in/**
+
+**Submission option A: hosted app plus GitHub repository.** Runs locally with Python 3.12; no Docker, GPU, frontend build, or external database required. Campus records and service status are fictional. A ticket is a real row in a local mock service-desk database; this app never deletes actual accounts.
 
 ![Support workspace](docs/screenshots/workspace.png)
 
@@ -41,7 +43,7 @@ CMD_API_KEY=your-local-key
 CMD_MODEL=stealth/space-bunny-alpha
 ```
 
-Restart the server. The badge reads **COMMAND CODE GO · CLI · LIVE**. The existing FastAPI endpoints remain the application's HTTP interface. Each model decision invokes the official CLI with the key passed privately as `COMMAND_CODE_API_KEY`, a temporary working directory, no session persistence, and a 90-second timeout and at most two CLI turns per decision. A mod disables CLI tools; LangGraph remains responsible for lookup execution and human-approved writes. Install the CLI at the path above or set `CMD_CLI_PATH` to its executable.
+Restart the server. The badge reads **Live support**. The existing FastAPI endpoints remain the application's HTTP interface. Each model decision invokes the official CLI with the key passed privately as `COMMAND_CODE_API_KEY`, a temporary working directory, no session persistence, and a 90-second timeout and at most two CLI turns per decision. A mod disables CLI tools; LangGraph remains responsible for lookup execution and human-approved writes. Install the CLI at the path above or set `CMD_CLI_PATH` to its executable.
 
 **Assessment distinction:** this adapter prompts for JSON and validates it with Pydantic. It converts validated tool decisions into `AIMessage.tool_calls` for the existing ToolNode. This is real LLM inference, but it is not native provider function calling. Use one of the API adapters below if the evaluator requires native function calling. CLI startup adds latency to every decision. No model/provider fallback occurs; free preview availability and pricing can change.
 
@@ -56,7 +58,7 @@ CMD_API_KEY=your-local-key
 CMD_MODEL=gpt-5.4-mini
 ```
 
-Restart the server. The badge changes to **COMMAND CODE · LIVE**. The key stays on the server. The existing `ChatOpenAI` client uses `https://api.commandcode.ai/provider/v1`; no additional SDK is needed. The default `gpt-5.4-mini` is listed in the [Command Code model catalog](https://api.commandcode.ai/provider/v1/models) with Chat Completions support. Choose a tool-capable model supporting that endpoint. Claude models on Command Code require the separate Anthropic Messages endpoint and are not supported by this adapter. An API-enabled Command Code plan and a Studio API key are required; see the [provider documentation](https://commandcode.ai/docs/provider).
+Restart the server. The badge reads **Live support**. The key stays on the server. The existing `ChatOpenAI` client uses `https://api.commandcode.ai/provider/v1`; no additional SDK is needed. The default `gpt-5.4-mini` is listed in the [Command Code model catalog](https://api.commandcode.ai/provider/v1/models) with Chat Completions support. Choose a tool-capable model supporting that endpoint. Claude models on Command Code require the separate Anthropic Messages endpoint and are not supported by this adapter. An API-enabled Command Code plan and a Studio API key are required; see the [provider documentation](https://commandcode.ai/docs/provider).
 
 OpenRouter remains available by setting:
 
@@ -79,11 +81,11 @@ This sends fictional campus requests to the selected model and is subject to its
 
 ## What to try
 
-1. Select **Wi-Fi outage**, then **Send request**. Watch node events stream; inspect the network finding and proposed ticket.
-2. Choose **Approve original draft**, **Deny request**, or edit fields and choose **Save edits & approve**. Look in **Ticket registry** for the result.
+1. Select **Wi-Fi outage**, then **Get help**. Watch node events stream; inspect the network finding and proposed ticket.
+2. Choose **Create ticket as drafted**, **Don’t create ticket**, or edit fields and choose **Save changes & create ticket**. Look in **Tickets** for the result.
 3. Restart the server while another ticket is pending. Load its conversation ID and review it; the same interrupt survives.
-4. Send **Guardrail test** or `Write a pizza recipe`. They are blocked before any model call.
-5. Open **Checkpoint lab → Create fault demo → Find bad checkpoint → Replay corrected branch**. The bad checkpoint remains in the timeline and the repaired branch pauses for new approval.
+4. Send the injection example in the demo guide or `Write a pizza recipe`. They are blocked before any model call.
+5. Open **Diagnostics → Create fault demo → Find bad checkpoint → Replay corrected branch**. The bad checkpoint remains in the timeline and the repaired branch pauses for new approval.
 
 The full [demo walkthrough](docs/DEMO.md) covers each evaluation item, including PII masking, memory trimming, loop detection, and idempotency.
 
@@ -213,7 +215,7 @@ This is a local assessment application with production-oriented controls, **not 
 
 SQLite plus an in-process lock supports **one application worker** and serializes requests, while workers inside a graph still run concurrently. Keep `data/` on a persistent local disk. Multi-worker deployment requires shared persistence and distributed per-thread coordination. Checkpoint storage and the thread list have no retention policy or pagination in this small demo.
 
-Local access is allowed without a token only from loopback. To expose the service, configure a long random `API_TOKEN`; send it as `Authorization: Bearer ...`, or enter it in the UI's Connection settings. The token is session-scoped in the browser. Cross-origin mutation requests are rejected. A shared token does not provide per-user roles or an enterprise audit identity; add those before a real multi-user deployment. No public deployment or GitHub publication is included in the initial local build.
+Local access is allowed without a token only from loopback. To expose the service, configure a long random `API_TOKEN`; send it as `Authorization: Bearer ...`, or enter it in the UI's Connection settings. For the hosted assessment, `PUBLIC_GUEST_ACCESS=1` creates signed HttpOnly browser sessions automatically, with separate visitor databases; no token entry is needed. The administrator bearer token still accesses the original workspace. Clearing cookies starts a new visitor workspace. Cross-origin mutation requests are rejected. A shared token does not provide per-user roles or an enterprise audit identity; add those before a real multi-user deployment. The hosted deployment uses one EC2 worker behind Cloudflare Tunnel.
 
 ## Sources
 

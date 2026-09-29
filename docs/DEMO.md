@@ -1,6 +1,6 @@
 # Reviewer walkthrough
 
-Run the README setup first. For a deterministic demonstration keep `MODEL_MODE=demo`; for actual model behavior configure Command Code or OpenRouter and run `python scripts/live_smoke.py`. The mock accounts are fictional. Each scenario should use **New thread** unless the scenario specifically tests a follow-up.
+Run the README setup first. For a deterministic demonstration keep `MODEL_MODE=demo`; for actual model behavior configure Command Code or OpenRouter and run `python scripts/live_smoke.py`. The mock accounts are fictional. Each scenario should use **New request** unless the scenario specifically tests a follow-up.
 
 ## 1. Read-only support and tool binding
 
@@ -10,13 +10,13 @@ Use `Campus wifi issue for STU-1001. Check its account and service status.` Obse
 
 ## 2. Write approval, denial, edits, idempotency
 
-Select **Wi-Fi outage**. Before approval, open **Ticket registry**: the new request has not created a record. The approval panel shows the exact draft.
+Select **Wi-Fi outage**. Before approval, open **Tickets**: the new request has not created a record. The approval panel shows the exact draft.
 
 - Approve the original: a ticket appears with an `IT-xxxxx` ID.
 - Repeat the same request on the same completed thread in demo mode, and approve again: the same final draft produces the same ticket ID.
 - New thread, same request, choose Deny: no ticket for that thread.
 - New thread, same request, change the title and choose Save edits & approve: the registry contains the edited title.
-- New thread, **Account review**: the draft action is `account_deletion_review`. Only a mock review ticket is created; the campus account itself never changes.
+- New thread, **Account access**: the draft action is `account_deletion_review`. Only a mock review ticket is created; the campus account itself never changes.
 
 For a bypass attempt, submit `approved: true` or `severity: high` as extra fields to `/run` using `/docs`; validation rejects them. Attempt `/approve` on a completed thread with its old checkpoint ID: HTTP 409. The write tool's `state`/`config` parameters are injected and absent from its LLM schema.
 
@@ -49,11 +49,11 @@ In a fresh thread, send a low-severity campus Wi-Fi request seven times. After t
 
 ## 7. Find, correct, and replay a bad checkpoint
 
-1. Open Checkpoint lab, click **Create fault demo**. This makes a new demo thread and writes a deliberate `invalid_demo` category into a fork of the triage checkpoint. No ticket is created.
+1. Open Diagnostics, click **Create fault demo**. This makes a new demo thread and writes a deliberate `invalid_demo` category into a fork of the triage checkpoint. No ticket is created.
 2. The timeline marks `invalid category`. Click **Find bad checkpoint**. It selects the unchanged parent just before the bad value appeared.
 3. Leave Corrected category at `network` and click **Replay corrected branch**.
 4. The timeline gains a new branch. The original bad checkpoint remains and can still be selected; its value has not been rewritten.
-5. Open Support desk or Approvals. The replay is paused at a fresh human approval. Approve or deny normally.
+5. Open Get help or Approvals. The replay is paused at a fresh human approval. Approve or deny normally.
 6. Replay a checkpoint from an approved run: it must ask for approval again. Approving the same final content must not duplicate the ticket.
 
 Correction deliberately permits only category changes and restarts downstream of triage. There is no arbitrary state-edit endpoint for setting `approved`, tool arguments, or severity. The fault button is disabled in live mode.
@@ -64,4 +64,4 @@ Correction deliberately permits only category changes and restarts downstream of
 - Run the complete offline suite and the optional live provider smoke check with your key.
 - Publish this repository on GitHub and make it public or share it with the instructor.
 - Confirm the README instructions from a fresh clone/virtual environment.
-- Submit the repository URL (option B); no separate write-up is required by the supplied guidelines.
+- Submit the hosted URL and repository URL (option A); no separate write-up is required by the supplied guidelines.
