@@ -3,6 +3,9 @@ import hmac
 import json
 import logging
 import os
+import secrets
+import re
+from threading import Lock
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -42,7 +45,9 @@ class ReplayRequest(BaseModel):
 
 def authorize(request: Request):
     token = os.getenv('API_TOKEN', '')
-    if token:
+    if getattr(request.state, 'guest_id', None) and not request.headers.get('Authorization'):
+        pass
+    elif token:
         if not hmac.compare_digest(request.headers.get('Authorization', ''), f'Bearer {token}'):
             raise HTTPException(401, 'Enter the configured API token.')
     elif request.client and request.client.host not in ('127.0.0.1', '::1', 'testclient'):
@@ -59,15 +64,45 @@ def create_app(directory=None):
         yield
         app.state.helpdesk.close()
 
+    guest_lock = Lock()
     app = FastAPI(title='Campus IT Desk', version='1.0.0', lifespan=lifespan)
+
+    @app.middleware('http')
+    async def guest_session(request, call_next):
+        enabled = os.getenv('PUBLIC_GUEST_ACCESS') == '1'
+        cookie = request.cookies.get('campus-session', '')
+        identity, _, signature = cookie.partition('.')
+        key = os.getenv('API_TOKEN', '')
+        if enabled and key:
+            if not (re.fullmatch(r'[a-f0-9]{48}', identity) and hmac.compare_digest(
+                    signature, hmac.new(key.encode(), identity.encode(), 'sha256').hexdigest())):
+                identity = secrets.token_hex(24)
+            request.state.guest_id = identity
+        response = await call_next(request)
+        if enabled and key:
+            signature = hmac.new(key.encode(), identity.encode(), 'sha256').hexdigest()
+            response.set_cookie('campus-session', f'{identity}.{signature}', httponly=True,
+                                secure=request.url.scheme == 'https', samesite='strict', max_age=2592000)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
 
     @app.get('/health')
     def health():
         return {'status': 'ok', 'mode': os.getenv('MODEL_MODE', 'demo'),
-                'provider': os.getenv('LLM_PROVIDER', 'openrouter'), 'auth_required': bool(os.getenv('API_TOKEN'))}
+                'provider': os.getenv('LLM_PROVIDER', 'openrouter'), 'auth_required': bool(os.getenv('API_TOKEN')) and os.getenv('PUBLIC_GUEST_ACCESS') != '1',
+                'guest_access': os.getenv('PUBLIC_GUEST_ACCESS') == '1'}
 
     def service(request: Request):
-        return request.app.state.helpdesk
+        if getattr(request.state, 'guest_id', None) and not request.headers.get('Authorization'):
+            # ponytail: serialize guest requests; use per-session locks for higher traffic.
+            with guest_lock:
+                desk = Helpdesk(Path(directory or os.getenv('DATA_DIR', 'data')) / 'guests' / request.state.guest_id)
+                try:
+                    yield desk
+                finally:
+                    desk.close()
+        else:
+            yield request.app.state.helpdesk
 
     def perform(function, *args):
         try:

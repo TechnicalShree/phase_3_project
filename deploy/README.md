@@ -25,3 +25,5 @@ ssh -i ~/.ssh/technical_shree.pem -N -L 127.0.0.1:8081:127.0.0.1:8081 ubuntu@ec2
 ```
 
 Then open `http://127.0.0.1:8081`. The tunnel protects the connection and works without exposing port 8081 publicly. Use HTTPS in front of the service before sending credentials over a public network.
+
+Public visitors connect automatically when `PUBLIC_GUEST_ACCESS=1` and `API_TOKEN` is set in the server `.env`. The token remains server-side. Signed HttpOnly cookies select isolated visitor databases under `data/guests`; the admin bearer token still accesses the original workspace. Browser cookies retain visitor access for 30 days; clearing cookies starts a new workspace. Guest operations are serialized in this single-worker deployment.
